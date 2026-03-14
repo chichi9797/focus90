@@ -2,116 +2,157 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <!-- 針對手機端優化的 Viewport -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Focus 90 Mobile</title>
+    <title>Focus 90 - 頂尖經紀人戰略系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap');
-        :root { --board-bg: #eaddca; --wood: #4a3728; }
-        body { font-family: 'Noto Serif TC', serif; background-color: #1a1512; color: #2d241e; margin: 0; padding: 0; }
-        .board-texture { background-color: var(--board-bg); background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png'); min-height: 100vh; border: 4px solid var(--wood); }
-        .cycle-dot { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--wood); display: flex; align-items: center; justify-content: center; font-weight: 900; background: rgba(255,255,255,0.3); font-size: 12px; }
-        .cycle-dot.active { background: var(--wood); color: #f4c430; transform: scale(1.1); box-shadow: 0 0 10px rgba(244,196,48,0.5); }
-        .res-icon { width: 55px; height: 55px; filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.3)); }
+        :root { --board-bg: #eaddca; --ink: #2d241e; --gold: #f4c430; --wood: #4a3728; --wood-light: #d9b99b; }
+        body { font-family: 'Noto Serif TC', serif; background-color: #1a1512; color: var(--ink); margin: 0; padding: 0; }
+        .board-texture { background-color: var(--board-bg); background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png'); min-height: 100vh; border: 6px solid var(--wood); }
+        
+        /* 01-07 週期軌道 */
+        .cycle-dot { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--wood); display: flex; align-items: center; justify-content: center; font-weight: 900; background: rgba(255,255,255,0.3); font-size: 12px; }
+        .cycle-dot.active { background: var(--wood); color: var(--gold); transform: scale(1.1); box-shadow: 0 0 10px rgba(244,196,48,0.5); }
+        
+        /* 資源 Icon (Imgur) */
+        .res-icon { width: 58px; height: 58px; filter: drop-shadow(2px 3px 5px rgba(0,0,0,0.3)); cursor: pointer; }
+        .res-icon:active { transform: scale(0.9); }
+        
+        /* 石頭進度條 */
         .stone-track { display: flex; gap: 1px; height: 18px; flex: 1; align-items: center; }
         .stone { flex: 1; height: 100%; background: rgba(0,0,0,0.1); border-radius: 2px; border: 1px solid rgba(0,0,0,0.1); }
         .stone.filled { background: #5d4037; box-shadow: inset 1px 1px 1px rgba(255,255,255,0.2); }
-        .ema-btn { background: #d9b99b; border: 2px solid #5d4037; clip-path: polygon(50% 0%, 100% 15%, 100% 100%, 0% 100%, 0% 15%); box-shadow: 0 3px 0 var(--wood); width: 100%; padding: 15px 10px; margin-bottom: 10px; text-align: center; }
+        
+        .adjust-btn { width: 30px; height: 30px; background: white; border: 1.5px solid var(--wood); border-radius: 4px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+        .ema-btn { background: var(--wood-light); border: 2px solid #5d4037; clip-path: polygon(50% 0%, 100% 15%, 100% 100%, 0% 100%, 0% 15%); box-shadow: 0 3px 0 var(--wood); width: 100%; padding: 16px 10px; margin-bottom: 8px; text-align: center; }
         .ema-btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--wood); }
-        .adjust-btn { width: 32px; height: 32px; background: white; border: 1.5px solid var(--wood); border-radius: 4px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+        
+        .lantern { width: 25px; height: 30px; background: #ccc; clip-path: polygon(20% 0%, 80% 0%, 100% 30%, 100% 70%, 80% 100%, 20% 100%, 0% 70%, 0% 30%); margin: 0 auto; border: 1px solid #000; }
+        .lantern.lit { background: #d97706; box-shadow: 0 0 10px #f59e0b; }
     </style>
 </head>
 <body>
-    <div id="app" class="board-texture pb-24">
-        <!-- TOP TRACK -->
-        <div class="bg-black/5 p-4 border-b-4 border-[#4a3728]">
-            <div class="flex justify-between items-center mb-3">
-                <h2 class="text-3xl font-black text-[#4a3728]">Day {{ dayDiff }}</h2>
-                <div class="text-right">
-                    <p class="text-[10px] font-black bg-[#4a3728] text-[#f4c430] px-2 py-0.5 rounded">TORONTO YYZ</p>
-                    <p class="font-mono font-bold text-sm">{{ torontoClock }}</p>
-                </div>
+    <div id="app" class="board-texture pb-10">
+        
+        <!-- 初始畫面：設定日期 -->
+        <div v-if="!startDate" class="p-8 text-center pt-20">
+            <h1 class="text-4xl font-black mb-2 text-[#4a3728]">FOCUS 90</h1>
+            <p class="text-sm font-bold opacity-60 mb-8 tracking-widest uppercase">Strategy System</p>
+            
+            <div class="bg-white/40 p-6 rounded-xl border-2 border-[#4a3728] max-w-sm mx-auto shadow-xl">
+                <p class="text-sm font-black mb-4">請選擇挑戰開始日期 (Day 01)：<br><span class="text-xs text-stone-500">(可選擇過去的日期以銜接進度)</span></p>
+                <input type="date" v-model="tempDate" class="w-full p-4 rounded-lg border-2 border-stone-400 mb-6 text-center text-xl font-bold bg-white">
+                <button @click="initGame" class="w-full bg-[#4a3728] text-white py-4 rounded-xl font-black text-lg">同步遊戲進度</button>
             </div>
-            <div class="flex justify-between px-1">
-                <div v-for="day in 7" :key="day" :class="['cycle-dot', currentCycleDay === day ? 'active' : '']">
-                    {{ String(day).padStart(2, '0') }}
-                </div>
-            </div>
+            <p class="mt-8 text-xs font-mono font-bold opacity-40">TORONTO TIME: {{ torontoClock }}</p>
         </div>
 
-        <!-- MOBILE UI: STACKED LAYOUT -->
-        <div class="p-3 space-y-6">
-            <!-- 資源區 -->
-            <div class="bg-white/10 p-3 rounded-lg border border-[#4a3728]/20">
-                <h3 class="text-center font-black text-xs tracking-widest mb-4 opacity-50 uppercase">Resource Board</h3>
-                <div class="space-y-4">
-                    <div v-for="res in resourceOrder" :key="res" class="flex items-center gap-2">
-                        <img :src="resImg[res]" class="res-icon" @click="adjustRes(res, 1)">
-                        <div class="flex-1">
-                            <div class="flex justify-between items-end text-[10px] font-black px-1">
-                                <span class="uppercase opacity-70">{{ res }}</span>
-                                <span>{{ resources[res] }}/20</span>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <button @click="adjustRes(res, -1)" class="adjust-btn">-</button>
-                                <div class="stone-track"><div v-for="n in 20" :key="n" :class="['stone', n <= resources[res] ? 'filled' : '']"></div></div>
-                                <button @click="adjustRes(res, 1)" class="adjust-btn">+</button>
+        <!-- 遊戲主介面 -->
+        <div v-else>
+            <!-- 頂部進度條 -->
+            <div class="bg-black/5 p-4 border-b-4 border-[#4a3728]">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-4xl font-black text-[#4a3728]">Day {{ String(dayDiff).padStart(2, '0') }}</h2>
+                        <p class="text-[10px] font-bold opacity-60 ml-1">WEEK {{ currentWeek }} / {{ calendarToday }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[9px] font-black bg-[#4a3728] text-[#f4c430] px-2 py-0.5 rounded italic">TORONTO (YYZ)</p>
+                        <p class="font-mono font-bold text-sm mt-1">{{ torontoClock }}</p>
+                    </div>
+                </div>
+                <div class="flex justify-between px-1">
+                    <div v-for="day in 7" :key="day" :class="['cycle-dot', currentCycleDay === day ? 'active' : '']">
+                        {{ String(day).padStart(2, '0') }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 內容區 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-0">
+                <!-- 資源區 -->
+                <div class="p-4 border-b-2 md:border-r-2 border-[#4a3728]/30">
+                    <h3 class="text-center font-black text-[10px] tracking-[0.3em] mb-4 opacity-40 uppercase">Resource Board</h3>
+                    <div class="space-y-4">
+                        <div v-for="res in resourceOrder" :key="res" class="flex items-center gap-3">
+                            <img :src="resImg[res]" class="res-icon" @click="adjustRes(res, 1)">
+                            <div class="flex-1">
+                                <div class="flex justify-between items-end text-[10px] font-black px-1 mb-1">
+                                    <span class="uppercase tracking-widest italic opacity-80">{{ res }}</span>
+                                    <span class="bg-white/50 px-2 rounded">{{ resources[res] }}/20</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button @click="adjustRes(res, -1)" class="adjust-btn shadow-sm">-</button>
+                                    <div class="stone-track">
+                                        <div v-for="n in 20" :key="n" :class="['stone', n <= resources[res] ? 'filled' : '']"></div>
+                                    </div>
+                                    <button @click="adjustRes(res, 1)" class="adjust-btn shadow-sm">+</button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- 行動區 -->
-            <div>
-                <h3 class="text-center font-black text-xs tracking-widest mb-4 opacity-50 uppercase italic">Action Zone</h3>
-                <div class="grid grid-cols-1 gap-2">
-                    <button v-for="action in [...primaryActions, ...secondaryActions]" :key="action.name" @click="openAction(action)" class="ema-btn">
-                        <p class="text-[9px] font-bold opacity-60 uppercase">{{ action.name }}</p>
-                        <p class="text-sm font-black">{{ action.label }}</p>
-                    </button>
+                <!-- 行動區 -->
+                <div class="p-4 bg-[#fdf6e3]/30">
+                    <h3 class="text-center font-black text-[10px] tracking-[0.3em] mb-4 opacity-40 uppercase italic">Action 系統</h3>
+                    <div class="grid grid-cols-1 gap-1">
+                        <button v-for="action in [...primaryActions, ...secondaryActions]" :key="action.name" @click="openAction(action)" class="ema-btn">
+                            <p class="text-[9px] font-bold opacity-60 uppercase tracking-widest">{{ action.name }}</p>
+                            <p class="text-sm font-black text-[#2d241e]">{{ action.label }}</p>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- 市場與同步 -->
-            <div class="grid grid-cols-1 gap-4 bg-black/5 p-4 rounded-lg">
-                <div class="flex justify-between items-center gap-4">
-                    <button @click="exportSync" class="flex-1 bg-[#4a3728] text-[#eaddca] text-[10px] font-bold py-3 rounded">📋 複製同步代碼</button>
-                    <button @click="importSync" class="flex-1 bg-amber-700 text-white text-[10px] font-bold py-3 rounded">📥 載入進度</button>
+            <!-- 底部工具欄 -->
+            <div class="p-4 bg-black/5 border-t-2 border-[#4a3728]/30">
+                <div class="grid grid-cols-2 gap-4">
+                    <button @click="exportSync" class="bg-[#4a3728] text-[#eaddca] text-[10px] font-black py-3 rounded shadow">📋 複製同步代碼</button>
+                    <button @click="importSync" class="bg-amber-700 text-white text-[10px] font-black py-3 rounded shadow">📥 載入進度</button>
                 </div>
-                <button @click="resetGame" class="text-[10px] opacity-30 italic">重置系統 (Reset)</button>
+                <div class="flex justify-between mt-4">
+                    <button @click="resetGame" class="text-[9px] font-bold opacity-30 hover:opacity-100 uppercase tracking-widest">Reset System</button>
+                    <p class="text-[9px] font-bold opacity-30 italic">Developed for Top Broker Strategy</p>
+                </div>
             </div>
         </div>
 
-        <!-- 彈窗 (手機全屏優化) -->
-        <div v-if="selectedAction" class="fixed inset-0 bg-black/90 flex items-end sm:items-center justify-center z-50">
-            <div class="bg-[#eaddca] border-t-4 sm:border-4 border-[#4a3728] w-full max-w-sm p-6 rounded-t-3xl sm:rounded-none">
-                <div class="flex justify-between items-start mb-6">
-                    <div>
-                        <p class="text-[10px] font-black opacity-50 uppercase tracking-widest">{{ selectedAction.name }}</p>
-                        <h4 class="text-xl font-black italic">{{ selectedAction.label }}</h4>
+        <!-- 行動彈窗 (完整文字) -->
+        <div v-if="selectedAction" class="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div class="bg-[#eaddca] border-4 border-[#4a3728] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col">
+                <div class="bg-[#4a3728] p-4 text-[#f4c430] font-black flex justify-between items-center">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase opacity-70 tracking-widest">{{ selectedAction.name }}</span>
+                        <span class="text-xl tracking-tight italic">{{ selectedAction.label }}</span>
                     </div>
                     <button @click="selectedAction = null" class="text-3xl">&times;</button>
                 </div>
-                <div class="space-y-4 mb-8">
-                    <div v-for="(task, idx) in selectedAction.tasks" :key="idx" class="flex gap-3 text-sm font-bold leading-snug">
-                        <span class="text-amber-800 shrink-0 mt-1">●</span> {{ task }}
+                <div class="p-6 overflow-y-auto max-h-[70vh]">
+                    <h4 class="text-[11px] font-black text-[#4a3728] border-b-2 border-[#4a3728] pb-1 mb-4 uppercase tracking-widest italic">必須完成：</h4>
+                    <ul class="space-y-4 mb-8">
+                        <li v-for="(task, idx) in selectedAction.tasks" :key="idx" class="flex gap-3 items-start">
+                            <div class="w-1.5 h-1.5 rounded-full bg-amber-800 mt-1.5 shrink-0"></div>
+                            <p class="text-sm font-bold text-stone-900 leading-snug">{{ task }}</p>
+                        </li>
+                    </ul>
+                    <div class="bg-amber-800/10 p-4 rounded border border-amber-800/20 mb-6 text-center">
+                        <p class="text-[10px] font-black text-amber-900 uppercase mb-1 italic">效果：</p>
+                        <p class="text-base font-black text-[#1a1512]">{{ selectedAction.rewardFull }}</p>
                     </div>
+                    <button @click="confirmAction" class="w-full bg-[#4a3728] text-white py-4 rounded font-black shadow-lg">確認完成行動</button>
                 </div>
-                <div class="bg-amber-800/10 p-3 rounded border border-amber-800/20 mb-6 text-center">
-                    <p class="text-xs font-black">{{ selectedAction.rewardFull }}</p>
-                </div>
-                <button @click="confirmAction" class="w-full bg-[#4a3728] text-white py-4 rounded-xl font-black shadow-lg">確認完成</button>
             </div>
         </div>
+
     </div>
 
     <script>
         const { createApp } = Vue;
+
         createApp({
             data() {
                 return {
@@ -138,26 +179,34 @@
             computed: {
                 dayDiff() {
                     if(!this.startDate) return 1;
-                    const start = new Date(this.startDate + 'T00:00:00-04:00'); 
-                    const nowT = new Date(this.torontoNow.toLocaleString("en-US", {timeZone: "America/Toronto"}));
+                    // 多倫多開始時間
+                    const start = new Date(this.startDate + 'T00:00:00-04:00');
+                    // 多倫多現在時間
+                    const torontoStr = this.torontoNow.toLocaleString("en-US", {timeZone: "America/Toronto"});
+                    const nowT = new Date(torontoStr);
                     nowT.setHours(0,0,0,0);
-                    return Math.min(90, Math.max(1, Math.floor((nowT - start) / 86400000) + 1));
+                    // 計算天數差
+                    const diffTime = nowT - start;
+                    const days = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                    return Math.min(90, Math.max(1, days));
                 },
                 currentCycleDay() { return ((this.dayDiff - 1) % 7) + 1; },
-                torontoClock() { return this.torontoNow.toLocaleTimeString('en-US', { timeZone: 'America/Toronto', hour12: false, hour: '2-digit', minute: '2-digit' }); }
+                currentWeek() { return Math.ceil(this.dayDiff / 7); },
+                torontoClock() { return this.torontoNow.toLocaleTimeString('en-US', { timeZone: 'America/Toronto', hour12: false, hour: '2-digit', minute: '2-digit' }); },
+                calendarToday() { return this.torontoNow.toLocaleDateString('zh-HK', { timeZone: 'America/Toronto', month: 'short', day: 'numeric', weekday: 'short' }); }
             },
             methods: {
                 initGame() { if (this.tempDate) { this.startDate = this.tempDate; this.save(); } },
                 adjustRes(res, val) { this.resources[res] = Math.max(0, Math.min(20, this.resources[res] + val)); this.save(); },
                 openAction(action) { this.selectedAction = action; },
                 confirmAction() { this.selectedAction.apply(); this.selectedAction = null; this.save(); },
-                save() { localStorage.setItem('focus90_mobile_v1', JSON.stringify({ startDate: this.startDate, resources: this.resources })); },
-                exportSync() { const code = btoa(encodeURIComponent(localStorage.getItem('focus90_mobile_v1'))); prompt("請複製代碼：", code); },
-                importSync() { const code = prompt("請貼上代碼："); if(code) { localStorage.setItem('focus90_mobile_v1', decodeURIComponent(atob(code))); location.reload(); } },
-                resetGame() { if(confirm("確定重置？")) { localStorage.clear(); location.reload(); } }
+                save() { localStorage.setItem('focus90_past_v1', JSON.stringify({ startDate: this.startDate, resources: this.resources })); },
+                exportSync() { const code = btoa(encodeURIComponent(localStorage.getItem('focus90_past_v1'))); prompt("請複製同步代碼：", code); },
+                importSync() { const code = prompt("請貼上代碼："); if(code) { localStorage.setItem('focus90_past_v1', decodeURIComponent(atob(code))); location.reload(); } },
+                resetGame() { if(confirm("確定重置進度？")) { localStorage.clear(); location.reload(); } }
             },
             mounted() {
-                const saved = localStorage.getItem('focus90_mobile_v1');
+                const saved = localStorage.getItem('focus90_past_v1');
                 if (saved) { const d = JSON.parse(saved); this.startDate = d.startDate; this.resources = d.resources; }
                 setInterval(() => this.torontoNow = new Date(), 1000);
             }
