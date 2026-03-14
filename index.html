@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <!-- 針對手機端優化的 Viewport -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Focus 90 Mobile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap');
+        :root { --board-bg: #eaddca; --wood: #4a3728; }
+        body { font-family: 'Noto Serif TC', serif; background-color: #1a1512; color: #2d241e; margin: 0; padding: 0; }
+        .board-texture { background-color: var(--board-bg); background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png'); min-height: 100vh; border: 4px solid var(--wood); }
+        .cycle-dot { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--wood); display: flex; align-items: center; justify-content: center; font-weight: 900; background: rgba(255,255,255,0.3); font-size: 12px; }
+        .cycle-dot.active { background: var(--wood); color: #f4c430; transform: scale(1.1); box-shadow: 0 0 10px rgba(244,196,48,0.5); }
+        .res-icon { width: 55px; height: 55px; filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.3)); }
+        .stone-track { display: flex; gap: 1px; height: 18px; flex: 1; align-items: center; }
+        .stone { flex: 1; height: 100%; background: rgba(0,0,0,0.1); border-radius: 2px; border: 1px solid rgba(0,0,0,0.1); }
+        .stone.filled { background: #5d4037; box-shadow: inset 1px 1px 1px rgba(255,255,255,0.2); }
+        .ema-btn { background: #d9b99b; border: 2px solid #5d4037; clip-path: polygon(50% 0%, 100% 15%, 100% 100%, 0% 100%, 0% 15%); box-shadow: 0 3px 0 var(--wood); width: 100%; padding: 15px 10px; margin-bottom: 10px; text-align: center; }
+        .ema-btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--wood); }
+        .adjust-btn { width: 32px; height: 32px; background: white; border: 1.5px solid var(--wood); border-radius: 4px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div id="app" class="board-texture pb-24">
+        <!-- TOP TRACK -->
+        <div class="bg-black/5 p-4 border-b-4 border-[#4a3728]">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-3xl font-black text-[#4a3728]">Day {{ dayDiff }}</h2>
+                <div class="text-right">
+                    <p class="text-[10px] font-black bg-[#4a3728] text-[#f4c430] px-2 py-0.5 rounded">TORONTO YYZ</p>
+                    <p class="font-mono font-bold text-sm">{{ torontoClock }}</p>
+                </div>
+            </div>
+            <div class="flex justify-between px-1">
+                <div v-for="day in 7" :key="day" :class="['cycle-dot', currentCycleDay === day ? 'active' : '']">
+                    {{ String(day).padStart(2, '0') }}
+                </div>
+            </div>
+        </div>
+
+        <!-- MOBILE UI: STACKED LAYOUT -->
+        <div class="p-3 space-y-6">
+            <!-- 資源區 -->
+            <div class="bg-white/10 p-3 rounded-lg border border-[#4a3728]/20">
+                <h3 class="text-center font-black text-xs tracking-widest mb-4 opacity-50 uppercase">Resource Board</h3>
+                <div class="space-y-4">
+                    <div v-for="res in resourceOrder" :key="res" class="flex items-center gap-2">
+                        <img :src="resImg[res]" class="res-icon" @click="adjustRes(res, 1)">
+                        <div class="flex-1">
+                            <div class="flex justify-between items-end text-[10px] font-black px-1">
+                                <span class="uppercase opacity-70">{{ res }}</span>
+                                <span>{{ resources[res] }}/20</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button @click="adjustRes(res, -1)" class="adjust-btn">-</button>
+                                <div class="stone-track"><div v-for="n in 20" :key="n" :class="['stone', n <= resources[res] ? 'filled' : '']"></div></div>
+                                <button @click="adjustRes(res, 1)" class="adjust-btn">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 行動區 -->
+            <div>
+                <h3 class="text-center font-black text-xs tracking-widest mb-4 opacity-50 uppercase italic">Action Zone</h3>
+                <div class="grid grid-cols-1 gap-2">
+                    <button v-for="action in [...primaryActions, ...secondaryActions]" :key="action.name" @click="openAction(action)" class="ema-btn">
+                        <p class="text-[9px] font-bold opacity-60 uppercase">{{ action.name }}</p>
+                        <p class="text-sm font-black">{{ action.label }}</p>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 市場與同步 -->
+            <div class="grid grid-cols-1 gap-4 bg-black/5 p-4 rounded-lg">
+                <div class="flex justify-between items-center gap-4">
+                    <button @click="exportSync" class="flex-1 bg-[#4a3728] text-[#eaddca] text-[10px] font-bold py-3 rounded">📋 複製同步代碼</button>
+                    <button @click="importSync" class="flex-1 bg-amber-700 text-white text-[10px] font-bold py-3 rounded">📥 載入進度</button>
+                </div>
+                <button @click="resetGame" class="text-[10px] opacity-30 italic">重置系統 (Reset)</button>
+            </div>
+        </div>
+
+        <!-- 彈窗 (手機全屏優化) -->
+        <div v-if="selectedAction" class="fixed inset-0 bg-black/90 flex items-end sm:items-center justify-center z-50">
+            <div class="bg-[#eaddca] border-t-4 sm:border-4 border-[#4a3728] w-full max-w-sm p-6 rounded-t-3xl sm:rounded-none">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <p class="text-[10px] font-black opacity-50 uppercase tracking-widest">{{ selectedAction.name }}</p>
+                        <h4 class="text-xl font-black italic">{{ selectedAction.label }}</h4>
+                    </div>
+                    <button @click="selectedAction = null" class="text-3xl">&times;</button>
+                </div>
+                <div class="space-y-4 mb-8">
+                    <div v-for="(task, idx) in selectedAction.tasks" :key="idx" class="flex gap-3 text-sm font-bold leading-snug">
+                        <span class="text-amber-800 shrink-0 mt-1">●</span> {{ task }}
+                    </div>
+                </div>
+                <div class="bg-amber-800/10 p-3 rounded border border-amber-800/20 mb-6 text-center">
+                    <p class="text-xs font-black">{{ selectedAction.rewardFull }}</p>
+                </div>
+                <button @click="confirmAction" class="w-full bg-[#4a3728] text-white py-4 rounded-xl font-black shadow-lg">確認完成</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        createApp({
+            data() {
+                return {
+                    startDate: null, tempDate: '', torontoNow: new Date(), selectedAction: null,
+                    resourceOrder: ['Knowledge', 'Content', 'Trust', 'Business', 'Focus'],
+                    resources: { Knowledge: 2, Content: 0, Trust: 0, Business: 0, Focus: 5 },
+                    market: { demand: 5, reputation: 3 },
+                    resImg: {
+                        Business: 'https://i.imgur.com/4yejQBR.png', Content: 'https://i.imgur.com/ZuGHRwj.png',
+                        Focus: 'https://i.imgur.com/uLHySnX.png', Knowledge: 'https://i.imgur.com/8sIacCb.png', Trust: 'https://i.imgur.com/ON9Mn4S.png'
+                    },
+                    primaryActions: [
+                        { name: "Deep Work", label: "深層工作", rewardFull: "+2 Focus", tasks: ["精讀地產書籍兩個章節, 並寫下 100–200 字筆記", "閱讀三篇地產相關新聞 - 轉化為3個不同Marketing Material", "一卷每日靈修"], apply: () => this.resources.Focus += 2 },
+                        { name: "Strategy", label: "戰略分析", rewardFull: "+2 Knowledge", tasks: ["觀看兩條地產影片,分析他們成功的地方並寫下100–200 字筆記", "分析2 條 Hot Thread, 模仿並出 1 條 Thread"], apply: () => this.resources.Knowledge += 2 },
+                        { name: "Production", label: "內容產出", rewardFull: "支付 1 Focus, +2 Content", tasks: ["發佈 2 條Thread, 或", "拍 1 條影片"], apply: () => { if(this.resources.Focus > 0) { this.resources.Focus--; this.resources.Content += 2; } } }
+                    ],
+                    secondaryActions: [
+                        { name: "Relationship", label: "關係經營", rewardFull: "支付 1 Focus, +2 Trust", tasks: ["3 次刻意溝通練習(Script ), 或", "模擬 3 次 Listing Presention對話"], apply: () => { if(this.resources.Focus > 0) { this.resources.Focus--; this.resources.Trust += 2; } } },
+                        { name: "Business", label: "開發成交", rewardFull: "支付 1 Trust, +2 Business", tasks: ["3 個客戶實際客戶推進行動 (follow up), 或", "1個客戶會議 (listing presentation) 或", "實際簽約 (Listing agreement)"], apply: () => { if(this.resources.Trust > 0) { this.resources.Trust--; this.resources.Business += 2; } } },
+                        { name: "Recovery", label: "恢復體能", rewardFull: "+2 Focus", tasks: ["休息 + 運動, 或", "深度整理與反思"], apply: () => this.resources.Focus += 2 }
+                    ]
+                }
+            },
+            computed: {
+                dayDiff() {
+                    if(!this.startDate) return 1;
+                    const start = new Date(this.startDate + 'T00:00:00-04:00'); 
+                    const nowT = new Date(this.torontoNow.toLocaleString("en-US", {timeZone: "America/Toronto"}));
+                    nowT.setHours(0,0,0,0);
+                    return Math.min(90, Math.max(1, Math.floor((nowT - start) / 86400000) + 1));
+                },
+                currentCycleDay() { return ((this.dayDiff - 1) % 7) + 1; },
+                torontoClock() { return this.torontoNow.toLocaleTimeString('en-US', { timeZone: 'America/Toronto', hour12: false, hour: '2-digit', minute: '2-digit' }); }
+            },
+            methods: {
+                initGame() { if (this.tempDate) { this.startDate = this.tempDate; this.save(); } },
+                adjustRes(res, val) { this.resources[res] = Math.max(0, Math.min(20, this.resources[res] + val)); this.save(); },
+                openAction(action) { this.selectedAction = action; },
+                confirmAction() { this.selectedAction.apply(); this.selectedAction = null; this.save(); },
+                save() { localStorage.setItem('focus90_mobile_v1', JSON.stringify({ startDate: this.startDate, resources: this.resources })); },
+                exportSync() { const code = btoa(encodeURIComponent(localStorage.getItem('focus90_mobile_v1'))); prompt("請複製代碼：", code); },
+                importSync() { const code = prompt("請貼上代碼："); if(code) { localStorage.setItem('focus90_mobile_v1', decodeURIComponent(atob(code))); location.reload(); } },
+                resetGame() { if(confirm("確定重置？")) { localStorage.clear(); location.reload(); } }
+            },
+            mounted() {
+                const saved = localStorage.getItem('focus90_mobile_v1');
+                if (saved) { const d = JSON.parse(saved); this.startDate = d.startDate; this.resources = d.resources; }
+                setInterval(() => this.torontoNow = new Date(), 1000);
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
